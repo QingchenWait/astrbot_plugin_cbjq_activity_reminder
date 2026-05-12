@@ -1,0 +1,15 @@
+name: astrbot_plugin_cbjq_activity_reminder
+display_name: 尘白禁区活动日历
+desc: 查询尘白禁区国服当期活动日历，并按配置自动提醒即将过期的活动。
+short_desc: 尘白禁区活动日历与过期提醒
+version: v1.0.3
+author: 青尘工作室
+repo: https://github.com/QingchenWait/astrbot_plugin_cbjq_activity_reminder
+astrbot_version: ">=4.16.0"
+support_platforms:
+  - aiocqhttp
+  - qq_official
+  - telegram
+  - wecom
+  - dingtalk
+
