@@ -1,0 +1,78 @@
+{
+  "allow_at_query": {
+    "description": "允许通过 @机器人 查询",
+    "type": "bool",
+    "default": true,
+    "hint": "开启后可使用 @bot 尘白活动 或 @bot 尘白日历 查询。"
+  },
+  "query_prefix": {
+    "description": "用户查询文案前缀",
+    "type": "string",
+    "default": "【尘白活动日历】",
+    "hint": "会显示在 /cbjq 或 /尘白活动 查询结果开头。"
+  },
+  "reminder_prefix": {
+    "description": "自动提醒文案前缀",
+    "type": "string",
+    "default": "【尘白活动提醒】",
+    "hint": "会显示在自动提醒消息开头。"
+  },
+  "underground_reference_date": {
+    "description": "过去某次地下清理开始日期",
+    "type": "string",
+    "default": "2026-05-01",
+    "hint": "格式建议 YYYY-MM-DD。可以填很早或未来日期，插件会按周期折算到当前期。"
+  },
+  "underground_cycle_days": {
+    "description": "地下清理更新周期天数",
+    "type": "int",
+    "default": 14,
+    "hint": "默认按 14 天一周期计算。"
+  },
+  "auto_reminder_enabled": {
+    "description": "启用自动提醒",
+    "type": "bool",
+    "default": true
+  },
+  "auto_reminder_time": {
+    "description": "自动提醒时间",
+    "type": "string",
+    "default": "20:00",
+    "hint": "每天本地时间 HH:MM 检查，活动或地下清理距离结束不足等于 1 天且大于 0 天时提醒。"
+  },
+  "reminder_sessions": {
+    "description": "自动提醒会话列表",
+    "type": "list",
+    "default": [],
+    "hint": "通常无需手填。AstrBot 管理员或当前 QQ 群群主可在目标会话发送 /cbjq_subscribe 订阅，或用 /sid 查看 unified_msg_origin 后填入。"
+  },
+  "cache_ttl_minutes": {
+    "description": "活动数据缓存分钟数",
+    "type": "int",
+    "default": 120,
+    "hint": "用户查询和自动提醒都会复用缓存；设为 0 表示每次都重新拉取。"
+  },
+  "ongoing_end_within_days": {
+    "description": "正在进行活动只展示多少天内结束",
+    "type": "int",
+    "default": 43,
+    "hint": "例如 14 表示只展示 14 天以内结束的正在进行活动。"
+  },
+  "upcoming_start_within_days": {
+    "description": "即将开始活动只展示多少天内开始",
+    "type": "int",
+    "default": 14,
+    "hint": "例如 14 表示只展示 14 天以内开始的未来活动。"
+  },
+  "request_timeout_seconds": {
+    "description": "官网请求超时秒数",
+    "type": "int",
+    "default": 15
+  },
+  "news_list_api": {
+    "description": "尘白活动新闻列表 API",
+    "type": "string",
+    "default": "https://www.cbjq.com/api.php?op=search_api&action=get_article_list&catid=7131&page=1&num=16&order_by=inputtime",
+    "hint": "获取新闻列表的网址，一般不用修改。"
+  }
+}
