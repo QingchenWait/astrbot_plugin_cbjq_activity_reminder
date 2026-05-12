@@ -22,6 +22,7 @@ DETAIL_API = (
     "https://www.cbjq.com/api.php?op=search_api&action=get_article_detail"
     "&catid={catid}&id={article_id}"
 )
+AUTO_REMINDER_SEND_INTERVAL_SECONDS = 3
 DEFAULT_CONFIG: Dict[str, Any] = {
     "query_prefix": "【尘白活动日历】",
     "reminder_prefix": "【尘白活动提醒】",
@@ -157,16 +158,21 @@ class Main(Star):
 
     @filter.event_message_type(filter.EventMessageType.ALL)
     async def mention_query_schedule(self, event: AstrMessageEvent):
-        """允许管理员配置 @bot 尘白活动 查询"""
-        if not self._cfg_bool("allow_at_query"):
-            return
+        """允许管理员配置 @bot 尘白活动 查询，也允许私聊 @bot 管理提醒订阅。"""
         if not self._is_at_bot(event):
             return
-        if not self._is_query_text(event.message_str):
+
+        command_text = self._normalize_at_command_text(event.message_str)
+        if command_text in ("尘白订阅提醒", "cbjq_subscribe"):
+            message = await self._subscribe_current_session(event)
+        elif command_text in ("尘白取消提醒", "cbjq_unsubscribe"):
+            message = await self._unsubscribe_current_session(event)
+        elif self._cfg_bool("allow_at_query") and self._is_query_text(event.message_str):
+            message = await self._build_query_response()
+        else:
             return
 
         event.stop_event()
-        message = await self._build_query_response()
         yield self._stop_result(event, message)
 
     @filter.command("cbjq_refresh", alias={"尘白刷新"})
@@ -187,42 +193,14 @@ class Main(Star):
     @filter.command("cbjq_subscribe", alias={"尘白订阅提醒"})
     async def subscribe_reminder(self, event: AstrMessageEvent):
         """订阅当前会话的尘白活动自动提醒"""
-        if not await self._can_manage_current_session(event):
-            yield self._stop_result(
-                event,
-                f"{self._cfg('query_prefix')}\n只有 AstrBot 管理员或当前 QQ 群群主可以订阅自动提醒。",
-            )
-            return
-
-        sessions = self._get_reminder_sessions()
-        if event.unified_msg_origin not in sessions:
-            sessions.append(event.unified_msg_origin)
-            self.config["reminder_sessions"] = sessions
-            self._save_config()
-        yield self._stop_result(
-            event,
-            f"{self._cfg('query_prefix')}\n已订阅当前会话的自动提醒。",
-        )
+        message = await self._subscribe_current_session(event)
+        yield self._stop_result(event, message)
 
     @filter.command("cbjq_unsubscribe", alias={"尘白取消提醒"})
     async def unsubscribe_reminder(self, event: AstrMessageEvent):
         """取消当前会话的尘白活动自动提醒"""
-        if not await self._can_manage_current_session(event):
-            yield self._stop_result(
-                event,
-                f"{self._cfg('query_prefix')}\n只有 AstrBot 管理员或当前 QQ 群群主可以取消自动提醒。",
-            )
-            return
-
-        sessions = self._get_reminder_sessions()
-        if event.unified_msg_origin in sessions:
-            sessions.remove(event.unified_msg_origin)
-            self.config["reminder_sessions"] = sessions
-            self._save_config()
-        yield self._stop_result(
-            event,
-            f"{self._cfg('query_prefix')}\n已取消当前会话的自动提醒。",
-        )
+        message = await self._unsubscribe_current_session(event)
+        yield self._stop_result(event, message)
 
     async def _reminder_loop(self) -> None:
         while True:
@@ -278,11 +256,13 @@ class Main(Star):
 
         message = self._format_reminder_message(pending, now)
         chain = MessageChain().message(message)
-        for session in sessions:
+        for index, session in enumerate(sessions):
             try:
                 await self.context.send_message(session, chain)
             except Exception as exc:
                 logger.warning("向 %s 发送尘白活动提醒失败: %s", session, exc)
+            if index < len(sessions) - 1:
+                await asyncio.sleep(AUTO_REMINDER_SEND_INTERVAL_SECONDS)
 
         reminded[today_key] = sorted(
             sent_ids | {item.identity for item in pending}
@@ -345,7 +325,7 @@ class Main(Star):
             total=max(3, self._cfg_int("request_timeout_seconds"))
         )
         headers = {
-            "User-Agent": "AstrBot-CBJQ-Activity-Reminder/v1.0.3",
+            "User-Agent": "AstrBot-CBJQ-Activity-Reminder/v1.0.4",
             "Accept": "application/json,text/plain,*/*",
             "Referer": "https://www.cbjq.com/",
         }
@@ -668,6 +648,34 @@ class Main(Star):
             return []
         return [str(item).strip() for item in raw if str(item).strip()]
 
+    async def _subscribe_current_session(self, event: AstrMessageEvent) -> str:
+        if not await self._can_manage_current_session(event):
+            return (
+                f"{self._cfg('query_prefix')}\n"
+                "只有 AstrBot 管理员、当前 QQ 群群主，或私聊中的普通用户可以订阅自动提醒。"
+            )
+
+        sessions = self._get_reminder_sessions()
+        if event.unified_msg_origin not in sessions:
+            sessions.append(event.unified_msg_origin)
+            self.config["reminder_sessions"] = sessions
+            self._save_config()
+        return f"{self._cfg('query_prefix')}\n已订阅当前会话的自动提醒。"
+
+    async def _unsubscribe_current_session(self, event: AstrMessageEvent) -> str:
+        if not await self._can_manage_current_session(event):
+            return (
+                f"{self._cfg('query_prefix')}\n"
+                "只有 AstrBot 管理员、当前 QQ 群群主，或私聊中的普通用户可以取消自动提醒。"
+            )
+
+        sessions = self._get_reminder_sessions()
+        if event.unified_msg_origin in sessions:
+            sessions.remove(event.unified_msg_origin)
+            self.config["reminder_sessions"] = sessions
+            self._save_config()
+        return f"{self._cfg('query_prefix')}\n已取消当前会话的自动提醒。"
+
     def _save_config(self) -> None:
         save_config = getattr(self.config, "save_config", None)
         if callable(save_config):
@@ -722,6 +730,8 @@ class Main(Star):
 
     async def _can_manage_current_session(self, event: AstrMessageEvent) -> bool:
         if event.is_admin():
+            return True
+        if event.is_private_chat():
             return True
         if not event.get_group_id():
             return False
@@ -781,9 +791,13 @@ class Main(Star):
 
     @staticmethod
     def _is_query_text(text: str) -> bool:
-        clean = re.sub(r"^@\S+\s*", "", text.strip())
-        clean = clean.lstrip("/").strip()
+        clean = Main._normalize_at_command_text(text)
         return clean in ("cbjq", "尘白活动", "尘白日历")
+
+    @staticmethod
+    def _normalize_at_command_text(text: str) -> str:
+        clean = re.sub(r"^@\S+\s*", "", text.strip())
+        return clean.lstrip("/").strip()
 
     @staticmethod
     def _extract_version_name(title: str) -> str:

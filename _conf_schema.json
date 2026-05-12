@@ -44,7 +44,7 @@
     "description": "自动提醒会话列表",
     "type": "list",
     "default": [],
-    "hint": "通常无需手填。AstrBot 管理员或当前 QQ 群群主可在目标会话发送 /cbjq_subscribe 订阅，或用 /sid 查看 unified_msg_origin 后填入。"
+    "hint": "通常无需手填。AstrBot 管理员、当前 QQ 群群主或私聊普通用户可在目标会话发送 /cbjq_subscribe 订阅，或用 /sid 查看 unified_msg_origin 后填入。"
   },
   "cache_ttl_minutes": {
     "description": "活动数据缓存分钟数",
